@@ -3,7 +3,8 @@ import tkinter as tk
 import sys
 from utils import MovingAverage
 
-moving_average_window = 10
+moving_average_window_rpm = 5
+moving_average_window_speed = 10
 
 class connectionOBD:
     def __init__(self):
@@ -15,7 +16,11 @@ class connectionOBD:
         """
         Returns engine RPM
         """
-        return self.connection.query(obd.commands.RPM).value.magnitude
+        result = self.connection.query(obd.commands.RPM)
+        if result.is_null:
+            return -1
+        else:
+            return result.value.magnitude
     
     def getSpeed(self):
         """
@@ -59,8 +64,8 @@ class HeadUpDisplayApp:
         
         # Initialize Values
         self.connection = connection
-        self.moving_average_rpm = MovingAverage(moving_average_window)
-        self.moving_average_speed = MovingAverage(moving_average_window)
+        self.moving_average_rpm = MovingAverage(moving_average_window_rpm)
+        self.moving_average_speed = MovingAverage(moving_average_window_speed)
         
         # Draw HUD
         self.drawHUD()
