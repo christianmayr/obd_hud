@@ -375,7 +375,7 @@ class HeadUpDisplayApp:
         self.moving_average_rpm.add_value(self.connection.getEngineRPM())
         self.moving_average_speed.add_value(self.connection.getSpeed())
         
-        averaged_rpm_string = str(round(self.moving_average_rpm.get_mean()))
+        averaged_rpm_string = str(round(self.moving_average_rpm.get_mean()/10))
         averaged_speed_string = str(round(self.moving_average_speed.get_mean()))
         
         # Clear temporary items
