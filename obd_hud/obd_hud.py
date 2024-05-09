@@ -62,6 +62,10 @@ class HeadUpDisplayApp:
         self.canvas = tk.Canvas(self.root, width=self.screen_width, height=self.screen_height, bg="Black")
         self.canvas.pack()
         
+        # Create Item Offsets
+        self.si_offset_x = self.screen_width // 4
+        self.si_offset_y = self.screen_height // 2
+        
         # Initialize Values
         self.connection = connection
         self.moving_average_rpm = MovingAverage(moving_average_window_rpm)
@@ -70,13 +74,16 @@ class HeadUpDisplayApp:
         # Draw HUD
         self.drawHUD()
         
+        # Create Item Lists
+        self.rpm_indicator_lines = []
+        
         # Update Values
         self.update_values()
         
     def drawHUD(self):
         # Draw RPM Indicator
-        si_offset_x = self.screen_width // 4
-        si_offset_y = self.screen_height // 2
+        si_offset_x = self.si_offset_x
+        si_offset_y = self.si_offset_y
         
         # Main Line
         self.canvas.create_line(
@@ -115,10 +122,31 @@ class HeadUpDisplayApp:
             si_offset_x-10, si_offset_y-25,
             si_offset_x-80, si_offset_y-25,
         ]
-        self.canvas.create_polygon(points, outline = "Lime", width = 2)
+        self.canvas.create_polygon(points, outline = "Lime", fill = "Black", width = 2)
         
         # Draw RPM
         self.rpmItem = self.canvas.create_text(si_offset_x-45, si_offset_y, text="E", fill="Lime", font=("Helvetica", 16, "bold"))
+        
+    def update_rpm_indicators(self):
+        si_offset_x = self.si_offset_x
+        si_offset_y = self.si_offset_y
+        
+        # Clear existing lines
+        for line in self.rpm_indicator_lines:
+            self.canvas.delete(line)
+        
+        # Range Markers
+        for i in range(10):
+            posY = si_offset_y - 250 + i * 50 + self.moving_average_rpm.get_mean() % 50
+            line = self.canvas.create_line(
+                    si_offset_x, 
+                    posY,
+                    si_offset_x + 20, 
+                    posY, 
+                    width=2, fill="Lime"
+                )
+            self.rpm_indicator_lines.append(line)
+        
         
         
     def update_values(self):
@@ -132,6 +160,7 @@ class HeadUpDisplayApp:
         averaged_speed_string = str(round(self.moving_average_speed.get_mean()))
         
         self.canvas.itemconfig(self.rpmItem, text=averaged_rpm_string)
+        self.update_rpm_indicators()
         self.root.after(20, self.update_values)
         
     def end_app(self, event):
