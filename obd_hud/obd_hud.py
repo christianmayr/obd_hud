@@ -1,6 +1,9 @@
 import obd
 import tkinter as tk
 import sys
+from utils import MovingAverage
+
+moving_average_window = 10
 
 class connectionOBD:
     def __init__(self):
@@ -12,14 +15,14 @@ class connectionOBD:
         """
         Returns engine RPM
         """
-        return self.connection.query(obd.commands.RPM).value
+        return self.connection.query(obd.commands.RPM).value.magnitude
     
     def getSpeed(self):
         """
         Returns speed in KMH
         """
-        response = self.connection.query(obd.commands.RPM)
-        return response
+        # TODO: Change to Speed
+        return self.connection.query(obd.commands.RPM).value.magnitude
 
 class connectionDummy:
     def __init__(self):
@@ -56,8 +59,8 @@ class HeadUpDisplayApp:
         
         # Initialize Values
         self.connection = connection
-        self.rpm_reading = connection.getEngineRPM()
-        self.speed_reading = connection.getSpeed()
+        self.moving_average_rpm = MovingAverage(moving_average_window)
+        self.moving_average_speed = MovingAverage(moving_average_window)
         
         # Draw HUD
         self.drawHUD()
@@ -117,13 +120,18 @@ class HeadUpDisplayApp:
         """
         Get current values from connection (Dummy or OBD)
         """
-        self.rpm_reading = self.connection.getEngineRPM()
-        self.speed_reading = self.connection.getSpeed()
-        self.canvas.itemconfig(self.rpmItem, text=str(self.rpm_reading))
+        self.moving_average_rpm.add_value(self.connection.getEngineRPM())
+        self.moving_average_speed.add_value(self.connection.getSpeed())
+        
+        averaged_rpm_string = str(round(self.moving_average_rpm.get_mean()))
+        averaged_speed_string = str(round(self.moving_average_speed.get_mean()))
+        
+        self.canvas.itemconfig(self.rpmItem, text=averaged_rpm_string)
         self.root.after(20, self.update_values)
         
     def end_app(self, event):
         self.root.destroy()
+        exit()
 
 def main():
     root = tk.Tk()
