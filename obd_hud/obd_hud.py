@@ -2,6 +2,7 @@ import obd
 import tkinter as tk
 import sys
 from utils import MovingAverage
+import math
 
 moving_average_window_rpm = 5
 moving_average_window_speed = 10
@@ -10,6 +11,9 @@ moving_average_window_speed = 10
 rpm_display_factor = 10
 rpm_low_threshold = 500
 rpm_high_threshold = 3500
+
+# Time between display refreshes (ms)
+refresh_time = 1000//60
 
 class connectionOBD:
     def __init__(self):
@@ -38,12 +42,14 @@ class connectionDummy:
     def __init__(self):
         self.rpm = 0
         self.speed = 100
+        self.t = 0
     
     def getEngineRPM(self):
         """
         Returns engine RPM
         """
-        self.rpm+=10
+        self.t += 0.02
+        self.rpm=2000+1700*math.cos(self.t)
         return self.rpm
     
     def getSpeed(self):
@@ -136,15 +142,17 @@ class HeadUpDisplayApp:
         si_offset_x = self.si_offset_x
         si_offset_y = self.si_offset_y
         
-        rpm = self.moving_average_rpm.get_mean()
+        rpm = round(self.moving_average_rpm.get_mean())
         
         # Clear temporary items
         for line in self.temporary_items:
             self.canvas.delete(line)
         
+        self.temporary_items=[]
+        
         for i in range(10):
             # if value is lower than 0 do not draw the lines
-            number = (round(rpm)//250-5+(10-i))*250//rpm_display_factor
+            number = (rpm//250-5+(10-i))*250//rpm_display_factor
             if number < 0:
                 continue
             
@@ -161,21 +169,21 @@ class HeadUpDisplayApp:
             
             # Print labels
             # display only every second label
-            if number%(100/rpm_display_factor) != 0:
+            if number%(100//rpm_display_factor) != 0:
                 continue
             label = self.canvas.create_text(
                 si_offset_x-25, 
                 posY, 
                 text=str(number), 
                 fill="Lime", 
-                font=("Helvetica", 16),
+                font=("Helvetica", 18),
                 anchor=tk.CENTER, justify=tk.CENTER
             )
             
             self.temporary_items.append(label)
             
         # Print low rpm threshold
-        lower_bound = round(rpm)-1250        
+        lower_bound = rpm-1250        
         low_threshold_range = rpm_low_threshold-lower_bound
         low_threshold_start_y = si_offset_y + 250 - low_threshold_range//5
         if low_threshold_range>0:
@@ -202,7 +210,7 @@ class HeadUpDisplayApp:
             self.temporary_items.append(box)
         
         # Print high rpm threshold
-        high_bound = round(rpm)+1250        
+        high_bound = rpm+1250        
         high_threshold_range = high_bound-rpm_high_threshold
         high_threshold_start_y = si_offset_y - 250 + high_threshold_range//5
         if high_threshold_range>0:
@@ -255,7 +263,7 @@ class HeadUpDisplayApp:
         self.canvas.itemconfig(self.rpmItem, text=averaged_rpm_string)
         self.canvas.tkraise(self.rpmItem)
         
-        self.root.after(20, self.update_values)
+        self.root.after(refresh_time, self.update_values)
         
     def end_app(self, event):
         self.root.destroy()
