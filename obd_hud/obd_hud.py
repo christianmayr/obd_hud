@@ -1,5 +1,6 @@
 import obd
 import tkinter as tk
+import sys
 
 class connectionOBD:
     def __init__(self):
@@ -126,8 +127,14 @@ class HeadUpDisplayApp:
 
 def main():
     root = tk.Tk()
-    app = HeadUpDisplayApp(root, connectionDummy())
+    
+    # Run application in dummy-mode
+    if "-d" in sys.argv:
+        app = HeadUpDisplayApp(root, connectionDummy())
+        root.mainloop()
+        
+    app = HeadUpDisplayApp(root, connectionOBD())
     root.mainloop()
-
+    
 if __name__ == "__main__":
     main()
