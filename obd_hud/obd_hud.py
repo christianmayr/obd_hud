@@ -6,6 +6,11 @@ from utils import MovingAverage
 moving_average_window_rpm = 5
 moving_average_window_speed = 10
 
+# What rpm is divided by before being displayed
+rpm_display_factor = 10
+rpm_low_threshold = 500
+rpm_high_threshold = 3500
+
 class connectionOBD:
     def __init__(self):
         self.connection=obd.OBD()
@@ -31,14 +36,14 @@ class connectionOBD:
 
 class connectionDummy:
     def __init__(self):
-        self.rpm = 1000
+        self.rpm = 0
         self.speed = 100
     
     def getEngineRPM(self):
         """
         Returns engine RPM
         """
-        self.rpm+=1
+        self.rpm+=10
         return self.rpm
     
     def getSpeed(self):
@@ -60,7 +65,7 @@ class HeadUpDisplayApp:
         self.screen_width = 1920
         self.screen_height = 1080
         self.canvas = tk.Canvas(self.root, width=self.screen_width, height=self.screen_height, bg="Black")
-        self.canvas.pack()
+        self.canvas.pack()        
         
         # Create Item Offsets
         self.si_offset_x = self.screen_width // 4
@@ -74,8 +79,8 @@ class HeadUpDisplayApp:
         # Draw HUD
         self.drawHUD()
         
-        # Create Item Lists
-        self.rpm_indicator_lines = []
+        # Dynamic item list to remove on each refresh
+        self.temporary_items = []
         
         # Update Values
         self.update_values()
@@ -98,7 +103,7 @@ class HeadUpDisplayApp:
         self.canvas.create_line(
                 si_offset_x - 50, 
                 si_offset_y - 250, 
-                si_offset_x + 25, 
+                si_offset_x + 28, 
                 si_offset_y - 250, 
                 width=2, fill="Lime"
             )
@@ -107,47 +112,132 @@ class HeadUpDisplayApp:
         self.canvas.create_line(
                 si_offset_x - 50, 
                 si_offset_y + 250, 
-                si_offset_x + 25, 
+                si_offset_x + 28, 
                 si_offset_y + 250, 
                 width=2, fill="Lime"
             )
         
         # Main Indicator
         points = [
-            si_offset_x-80, si_offset_y+25,
-            si_offset_x-10, si_offset_y+25,
-            si_offset_x-10, si_offset_y+10,
+            si_offset_x-80, si_offset_y+30,
+            si_offset_x-10, si_offset_y+30,
+            si_offset_x-10, si_offset_y+6,
             si_offset_x, si_offset_y,
-            si_offset_x-10, si_offset_y-10,
-            si_offset_x-10, si_offset_y-25,
-            si_offset_x-80, si_offset_y-25,
+            si_offset_x-10, si_offset_y-6,
+            si_offset_x-10, si_offset_y-30,
+            si_offset_x-80, si_offset_y-30,
         ]
-        self.canvas.create_polygon(points, outline = "Lime", fill = "Black", width = 2)
+        self.rpm_pointer = self.canvas.create_polygon(points, outline = "Lime", fill = "Black", width = 2)
         
         # Draw RPM
-        self.rpmItem = self.canvas.create_text(si_offset_x-45, si_offset_y, text="E", fill="Lime", font=("Helvetica", 16, "bold"))
+        self.rpmItem = self.canvas.create_text(si_offset_x-16, si_offset_y+3, text="E", fill="Lime", font=("Helvetica", 27), anchor=tk.E, justify=tk.RIGHT)
         
     def update_rpm_indicators(self):
         si_offset_x = self.si_offset_x
         si_offset_y = self.si_offset_y
         
-        # Clear existing lines
-        for line in self.rpm_indicator_lines:
+        rpm = self.moving_average_rpm.get_mean()
+        
+        # Clear temporary items
+        for line in self.temporary_items:
             self.canvas.delete(line)
         
-        # Range Markers
         for i in range(10):
-            posY = si_offset_y - 250 + i * 50 + self.moving_average_rpm.get_mean() % 50
+            # if value is lower than 0 do not draw the lines
+            number = (round(rpm)//250-5+(10-i))*250//rpm_display_factor
+            if number < 0:
+                continue
+            
+            # Print markers
+            posY = si_offset_y - 250 + i * 50 + (rpm//5) % 50
             line = self.canvas.create_line(
-                    si_offset_x, 
-                    posY,
-                    si_offset_x + 20, 
-                    posY, 
-                    width=2, fill="Lime"
+                si_offset_x, 
+                posY,
+                si_offset_x + 20, 
+                posY, 
+                width=2, fill="Lime"
+            )
+            self.temporary_items.append(line)
+            
+            # Print labels
+            # display only every second label
+            if number%(100/rpm_display_factor) != 0:
+                continue
+            label = self.canvas.create_text(
+                si_offset_x-25, 
+                posY, 
+                text=str(number), 
+                fill="Lime", 
+                font=("Helvetica", 16),
+                anchor=tk.CENTER, justify=tk.CENTER
+            )
+            
+            self.temporary_items.append(label)
+            
+        # Print low rpm threshold
+        lower_bound = round(rpm)-1250        
+        low_threshold_range = rpm_low_threshold-lower_bound
+        low_threshold_start_y = si_offset_y + 250 - low_threshold_range//5
+        if low_threshold_range>0:
+            n_boxes = low_threshold_range//25//5
+            for i in range(n_boxes):
+                box_fill = "Lime" if i%2==0 else "Black"
+                box = self.canvas.create_rectangle(
+                    si_offset_x+20, 
+                    low_threshold_start_y+i*25, #
+                    si_offset_x+28, 
+                    low_threshold_start_y+(i+1)*25, #
+                    fill=box_fill,width=2,outline="Lime"
                 )
-            self.rpm_indicator_lines.append(line)
+                self.temporary_items.append(box)
+            # Add last box with custom size
+            box_fill = "Lime" if n_boxes%2==0 else "Black"
+            box = self.canvas.create_rectangle(
+                    si_offset_x+20, 
+                    low_threshold_start_y+n_boxes*25,
+                    si_offset_x+28, 
+                    si_offset_y+250,
+                    fill=box_fill,width=2,outline="Lime"
+                )
+            self.temporary_items.append(box)
         
-        
+        # Print high rpm threshold
+        high_bound = round(rpm)+1250        
+        high_threshold_range = high_bound-rpm_high_threshold
+        high_threshold_start_y = si_offset_y - 250 + high_threshold_range//5
+        if high_threshold_range>0:
+            n_boxes = high_threshold_range//25//5
+            # Add First box with custom size
+            box_fill = "Lime" if n_boxes%2==0 else "Black"
+            box = self.canvas.create_rectangle(
+                    si_offset_x+20, 
+                    si_offset_y-250,
+                    si_offset_x+28, 
+                    high_threshold_start_y-n_boxes*25,
+                    fill=box_fill,width=2,outline="Lime"
+                )
+            self.temporary_items.append(box)
+            for i in range(n_boxes):
+                box_fill = "Lime" if i%2==0 else "Black"
+                box = self.canvas.create_rectangle(
+                    si_offset_x+20, 
+                    high_threshold_start_y-(i+1)*25, #
+                    si_offset_x+28, 
+                    high_threshold_start_y-i*25, #
+                    fill=box_fill,width=1,outline="Lime"
+                )
+                self.temporary_items.append(box)
+                
+        # Print warning bar
+        if high_threshold_range>-250:
+            box = self.canvas.create_rectangle(
+                    si_offset_x+20, 
+                    high_threshold_start_y+50,
+                    si_offset_x+24, 
+                    high_threshold_start_y if high_threshold_start_y>si_offset_y-250 else si_offset_y-250,
+                    fill="Black",width=2,outline="Lime"
+                )
+            self.temporary_items.append(box)
         
     def update_values(self):
         """
@@ -156,11 +246,15 @@ class HeadUpDisplayApp:
         self.moving_average_rpm.add_value(self.connection.getEngineRPM())
         self.moving_average_speed.add_value(self.connection.getSpeed())
         
-        averaged_rpm_string = str(round(self.moving_average_rpm.get_mean()))
+        averaged_rpm_string = str(round(self.moving_average_rpm.get_mean())//rpm_display_factor)
         averaged_speed_string = str(round(self.moving_average_speed.get_mean()))
         
-        self.canvas.itemconfig(self.rpmItem, text=averaged_rpm_string)
         self.update_rpm_indicators()
+        self.canvas.tkraise(self.rpm_pointer)
+        
+        self.canvas.itemconfig(self.rpmItem, text=averaged_rpm_string)
+        self.canvas.tkraise(self.rpmItem)
+        
         self.root.after(20, self.update_values)
         
     def end_app(self, event):
