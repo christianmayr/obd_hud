@@ -12,6 +12,8 @@ rpm_display_factor = 10
 rpm_low_threshold = 500
 rpm_high_threshold = 3500
 
+speed_high_threshold = 130
+
 # Time between display refreshes (ms)
 refresh_time = 1000//60
 
@@ -35,8 +37,11 @@ class connectionOBD:
         """
         Returns speed in KMH
         """
-        # TODO: Add Speed
-        return 0
+        result = self.connection.query(obd.commands.SPEED)
+        try:
+            return result.value.magnitude
+        except AttributeError:
+            return -1
 
 class connectionDummy:
     def __init__(self):
@@ -46,7 +51,7 @@ class connectionDummy:
         """
         Returns engine RPM
         """
-        self.t += 0.02
+        self.t += 0.005
         return 2000+1700*math.cos(self.t)
     
     def getSpeed(self):
@@ -188,13 +193,7 @@ class HeadUpDisplayApp:
         ri_offset_y = self.ri_offset_y
         
         rpm = round(self.moving_average_rpm.get_mean())
-        
-        # Clear temporary items
-        for line in self.temporary_items:
-            self.canvas.delete(line)
-        
-        self.temporary_items=[]
-        
+                
         for i in range(10):
             # if value is lower than 0 do not draw the lines
             number = (rpm//250-5+(10-i))*250//rpm_display_factor
@@ -228,7 +227,7 @@ class HeadUpDisplayApp:
             self.temporary_items.append(label)
             
         # Print low rpm threshold
-        lower_bound = rpm-1250        
+        lower_bound = rpm-125*rpm_display_factor        
         low_threshold_range = rpm_low_threshold-lower_bound
         low_threshold_start_y = ri_offset_y + 250 - low_threshold_range//5
         if low_threshold_range>0:
@@ -255,7 +254,7 @@ class HeadUpDisplayApp:
             self.temporary_items.append(box)
         
         # Print high rpm threshold
-        high_bound = rpm+1250        
+        high_bound = rpm+125*rpm_display_factor      
         high_threshold_range = high_bound-rpm_high_threshold
         high_threshold_start_y = ri_offset_y - 250 + high_threshold_range//5
         if high_threshold_range>0:
@@ -291,6 +290,83 @@ class HeadUpDisplayApp:
                     fill="Black",width=2,outline="Lime"
                 )
             self.temporary_items.append(box)
+            
+    def update_speed_indicators(self):
+        si_offset_x = self.si_offset_x
+        si_offset_y = self.si_offset_y
+        
+        speed = round(self.moving_average_speed.get_mean())
+        
+        for i in range(10):
+            # if value is lower than 0 do not draw the lines
+            number = (speed//5-5+(10-i))*5
+            if number < 0:
+                continue
+            
+            # Print markers
+            posY = si_offset_y - 250 + i * 50 + (5*speed) % 50
+            line = self.canvas.create_line(
+                si_offset_x, 
+                posY,
+                si_offset_x - 20, 
+                posY, 
+                width=2, fill="Lime"
+            )
+            self.temporary_items.append(line)
+            
+            # Print labels
+            # display only every second label
+            if number%(10) != 0:
+                continue
+            label = self.canvas.create_text(
+                si_offset_x+20, 
+                posY, 
+                text=str(number), 
+                fill="Lime", 
+                font=("Helvetica", 18),
+                anchor=tk.CENTER, justify=tk.CENTER
+            )
+            
+            self.temporary_items.append(label)
+            
+        """
+        # Print high rpm threshold
+        high_bound = speed+1250        
+        high_threshold_range = high_bound-speed_high_threshold
+        high_threshold_start_y = si_offset_y - 250 + high_threshold_range//5
+        if high_threshold_range>0:
+            n_boxes = high_threshold_range//25//5
+            # Add First box with custom size
+            box_fill = "Lime" if n_boxes%2==0 else "Black"
+            box = self.canvas.create_rectangle(
+                    si_offset_x-20, 
+                    si_offset_y-250,
+                    si_offset_x-28, 
+                    high_threshold_start_y-n_boxes*25,
+                    fill=box_fill,width=2,outline="Lime"
+                )
+            self.temporary_items.append(box)
+            for i in range(n_boxes):
+                box_fill = "Lime" if i%2==0 else "Black"
+                box = self.canvas.create_rectangle(
+                    si_offset_x-20, 
+                    high_threshold_start_y-(i+1)*25, #
+                    si_offset_x-28, 
+                    high_threshold_start_y-i*25, #
+                    fill=box_fill,width=1,outline="Lime"
+                )
+                self.temporary_items.append(box)
+                
+        # Print warning bar
+        if high_threshold_range>-250:
+            box = self.canvas.create_rectangle(
+                    si_offset_x-20, 
+                    high_threshold_start_y+50,
+                    si_offset_x-24, 
+                    high_threshold_start_y if high_threshold_start_y>si_offset_y-250 else si_offset_y-250,
+                    fill="Black",width=2,outline="Lime"
+                )
+            self.temporary_items.append(box)"""
         
     def update_values(self):
         """
@@ -299,8 +375,13 @@ class HeadUpDisplayApp:
         self.moving_average_rpm.add_value(self.connection.getEngineRPM())
         self.moving_average_speed.add_value(self.connection.getSpeed())
         
-        averaged_rpm_string = str(round(self.moving_average_rpm.get_mean())//rpm_display_factor)
+        averaged_rpm_string = str(round(self.moving_average_rpm.get_mean()))
         averaged_speed_string = str(round(self.moving_average_speed.get_mean()))
+        
+        # Clear temporary items
+        for item in self.temporary_items:
+            self.canvas.delete(item)
+        self.temporary_items=[]
         
         # update rpm gauge
         self.update_rpm_indicators()
@@ -309,8 +390,8 @@ class HeadUpDisplayApp:
         self.canvas.tkraise(self.rpmItem)
         
         # update speed gauge
-        #self.update_speed_indicators()
-        #self.canvas.tkraise(self.speed_pointer)
+        self.update_speed_indicators()
+        self.canvas.tkraise(self.speed_pointer)
         self.canvas.itemconfig(self.speedItem, text=averaged_speed_string)
         self.canvas.tkraise(self.speedItem)
         
