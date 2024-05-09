@@ -17,9 +17,9 @@ class connectionOBD:
         Returns engine RPM
         """
         result = self.connection.query(obd.commands.RPM)
-        if not result.is_null:
+        try:
             return result.value.magnitude
-        else:
+        except AttributeError:
             return -1
     
     def getSpeed(self):
