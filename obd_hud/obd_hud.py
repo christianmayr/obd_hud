@@ -17,17 +17,17 @@ class connectionOBD:
         Returns engine RPM
         """
         result = self.connection.query(obd.commands.RPM)
-        if result.is_null:
-            return -1
-        else:
+        if not result.is_null:
             return result.value.magnitude
+        else:
+            return -1
     
     def getSpeed(self):
         """
         Returns speed in KMH
         """
-        # TODO: Change to Speed
-        return self.connection.query(obd.commands.RPM).value.magnitude
+        # TODO: Add Speed
+        return 0
 
 class connectionDummy:
     def __init__(self):
