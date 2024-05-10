@@ -10,7 +10,7 @@ moving_average_window_speed = 15
 # What rpm is divided by before being displayed
 rpm_display_factor = 10
 rpm_low_threshold = 700
-rpm_high_threshold = 3500
+rpm_high_threshold = 4000
 
 speed_high_threshold = 130
 
@@ -51,7 +51,7 @@ class connectionDummy:
         """
         Returns engine RPM
         """
-        self.t += 0.001
+        self.t += 0.01
         return 2000+1700*math.cos(self.t)
     
     def getSpeed(self):
@@ -235,10 +235,10 @@ class HeadUpDisplayApp:
                 self.temporary_items.append(box)
                 
         # Print warning bar
-        if high_threshold_range>-250:
+        if high_threshold_range>-1000:
             box = self.canvas.create_rectangle(
                     ri_offset_x+20, 
-                    high_threshold_start_y+50,
+                    high_threshold_start_y+200,
                     ri_offset_x+24, 
                     high_threshold_start_y if high_threshold_start_y>ri_offset_y-250 else ri_offset_y-250,
                     fill="Black",width=1,outline="Lime"
@@ -332,7 +332,7 @@ class HeadUpDisplayApp:
             self.temporary_items.append(label)
             
         
-        # Print high rpm threshold
+        # Print high speed threshold
         high_bound = speed+25        
         high_threshold_range = high_bound-speed_high_threshold
         high_threshold_start_y = si_offset_y - 250 + high_threshold_range*10
