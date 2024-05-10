@@ -4,7 +4,7 @@ import sys
 from utils import MovingAverage
 import math
 
-moving_average_window_rpm = 5
+moving_average_window_rpm = 10
 moving_average_window_speed = 15
 
 # What rpm is divided by before being displayed
@@ -146,16 +146,16 @@ class HeadUpDisplayApp:
         ri_offset_x = self.ri_offset_x
         ri_offset_y = self.ri_offset_y
         
-        rpm = round(self.moving_average_rpm.get_mean())
+        rpm = self.moving_average_rpm.get_mean()
                 
         for i in range(10):
             # if value is lower than 0 do not draw the lines
-            number = (rpm//250-5+(10-i))*250//rpm_display_factor
+            number = round((rpm//250-5+(10-i))*250//rpm_display_factor)
             if number < 0:
                 continue
             
             # Print markers
-            posY = ri_offset_y - 250 + i * 50 + (rpm//5) % 50
+            posY = ri_offset_y - 250 + i * 50 + (rpm/5) % 50
             line = self.canvas.create_line(
                 ri_offset_x, 
                 posY,
@@ -181,9 +181,9 @@ class HeadUpDisplayApp:
             self.temporary_items.append(label)
             
         # Print low rpm threshold
-        lower_bound = rpm-125*rpm_display_factor        
+        lower_bound = round(rpm)-125*rpm_display_factor        
         low_threshold_range = rpm_low_threshold-lower_bound
-        low_threshold_start_y = ri_offset_y + 250 - low_threshold_range//5
+        low_threshold_start_y = ri_offset_y + 250 - low_threshold_range/5
         if low_threshold_range>0:
             n_boxes = low_threshold_range//25//5
             for i in range(n_boxes):
@@ -208,9 +208,9 @@ class HeadUpDisplayApp:
             self.temporary_items.append(box)
         
         # Print high rpm threshold
-        high_bound = rpm+125*rpm_display_factor      
+        high_bound = round(rpm)+125*rpm_display_factor      
         high_threshold_range = high_bound-rpm_high_threshold
-        high_threshold_start_y = ri_offset_y - 250 + high_threshold_range//5
+        high_threshold_start_y = ri_offset_y - 250 + high_threshold_range/5
         if high_threshold_range>0:
             n_boxes = high_threshold_range//25//5
             # Add First box with custom size
