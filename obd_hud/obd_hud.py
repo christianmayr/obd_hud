@@ -5,11 +5,11 @@ from utils import MovingAverage
 import math
 
 moving_average_window_rpm = 5
-moving_average_window_speed = 10
+moving_average_window_speed = 15
 
 # What rpm is divided by before being displayed
 rpm_display_factor = 10
-rpm_low_threshold = 500
+rpm_low_threshold = 700
 rpm_high_threshold = 3500
 
 speed_high_threshold = 130
@@ -51,7 +51,7 @@ class connectionDummy:
         """
         Returns engine RPM
         """
-        self.t += 0.005
+        self.t += 0.001
         return 2000+1700*math.cos(self.t)
     
     def getSpeed(self):
@@ -142,52 +142,6 @@ class HeadUpDisplayApp:
         # Draw RPM text
         self.rpmItem = self.canvas.create_text(ri_offset_x-16, ri_offset_y+3, text="E", fill="Lime", font=("Helvetica", 27), anchor=tk.E, justify=tk.RIGHT)
         
-    def drawSpeed(self):
-        si_offset_x = self.si_offset_x
-        si_offset_y = self.si_offset_y
-        
-        # Main Line
-        self.canvas.create_line(
-                si_offset_x - 20, 
-                si_offset_y - 250, 
-                si_offset_x - 20, 
-                si_offset_y + 250, 
-                width=2, fill="Lime"
-            )
-        
-        # Upper Bound
-        self.canvas.create_line(
-                si_offset_x + 50, 
-                si_offset_y - 250, 
-                si_offset_x - 28, 
-                si_offset_y - 250, 
-                width=2, fill="Lime"
-            )
-        
-        # Lower Bound
-        self.canvas.create_line(
-                si_offset_x + 50, 
-                si_offset_y + 250, 
-                si_offset_x - 28, 
-                si_offset_y + 250, 
-                width=2, fill="Lime"
-            )
-        
-        # Main Indicator
-        points = [
-            si_offset_x+80, si_offset_y+30,
-            si_offset_x+10, si_offset_y+30,
-            si_offset_x+10, si_offset_y+6,
-            si_offset_x, si_offset_y,
-            si_offset_x+10, si_offset_y-6,
-            si_offset_x+10, si_offset_y-30,
-            si_offset_x+80, si_offset_y-30,
-        ]
-        self.speed_pointer = self.canvas.create_polygon(points, outline = "Lime", fill = "Black", width = 2)
-        
-        # Draw RPM text
-        self.speedItem = self.canvas.create_text(si_offset_x+75, si_offset_y+3, text="E", fill="Lime", font=("Helvetica", 27), anchor=tk.E, justify=tk.RIGHT)
-        
     def update_rpm_indicators(self):
         ri_offset_x = self.ri_offset_x
         ri_offset_y = self.ri_offset_y
@@ -239,7 +193,7 @@ class HeadUpDisplayApp:
                     low_threshold_start_y+i*25, #
                     ri_offset_x+28, 
                     low_threshold_start_y+(i+1)*25, #
-                    fill=box_fill,width=2,outline="Lime"
+                    fill=box_fill,width=1,outline="Lime"
                 )
                 self.temporary_items.append(box)
             # Add last box with custom size
@@ -249,7 +203,7 @@ class HeadUpDisplayApp:
                     low_threshold_start_y+n_boxes*25,
                     ri_offset_x+28, 
                     ri_offset_y+250,
-                    fill=box_fill,width=2,outline="Lime"
+                    fill=box_fill,width=1,outline="Lime"
                 )
             self.temporary_items.append(box)
         
@@ -266,7 +220,7 @@ class HeadUpDisplayApp:
                     ri_offset_y-250,
                     ri_offset_x+28, 
                     high_threshold_start_y-n_boxes*25,
-                    fill=box_fill,width=2,outline="Lime"
+                    fill=box_fill,width=1,outline="Lime"
                 )
             self.temporary_items.append(box)
             for i in range(n_boxes):
@@ -287,24 +241,72 @@ class HeadUpDisplayApp:
                     high_threshold_start_y+50,
                     ri_offset_x+24, 
                     high_threshold_start_y if high_threshold_start_y>ri_offset_y-250 else ri_offset_y-250,
-                    fill="Black",width=2,outline="Lime"
+                    fill="Black",width=1,outline="Lime"
                 )
             self.temporary_items.append(box)
+        
+    def drawSpeed(self):
+        si_offset_x = self.si_offset_x
+        si_offset_y = self.si_offset_y
+        
+        # Main Line
+        self.canvas.create_line(
+                si_offset_x - 20, 
+                si_offset_y - 250, 
+                si_offset_x - 20, 
+                si_offset_y + 250, 
+                width=2, fill="Lime"
+            )
+        
+        # Upper Bound
+        self.canvas.create_line(
+                si_offset_x + 50, 
+                si_offset_y - 250, 
+                si_offset_x - 28, 
+                si_offset_y - 250, 
+                width=2, fill="Lime"
+            )
+        
+        # Lower Bound
+        self.canvas.create_line(
+                si_offset_x + 50, 
+                si_offset_y + 250, 
+                si_offset_x - 28, 
+                si_offset_y + 250, 
+                width=2, fill="Lime"
+            )
+        
+        # Main Indicator
+        points = [
+            si_offset_x+80, si_offset_y+30,
+            si_offset_x+10, si_offset_y+30,
+            si_offset_x+10, si_offset_y+6,
+            si_offset_x, si_offset_y,
+            si_offset_x+10, si_offset_y-6,
+            si_offset_x+10, si_offset_y-30,
+            si_offset_x+80, si_offset_y-30,
+        ]
+        self.speed_pointer = self.canvas.create_polygon(points, outline = "Lime", fill = "Black", width = 2)
+        
+        # Draw RPM text
+        self.speedItem = self.canvas.create_text(si_offset_x+75, si_offset_y+3, text="E", fill="Lime", font=("Helvetica", 27), anchor=tk.E, justify=tk.RIGHT)
             
     def update_speed_indicators(self):
         si_offset_x = self.si_offset_x
         si_offset_y = self.si_offset_y
         
-        speed = round(self.moving_average_speed.get_mean())
+        speed = self.moving_average_speed.get_mean()
         
         for i in range(10):
+            # draw markers in 5 kmh increments
+            increment = round((speed//5-5+(10-i))*5)
             # if value is lower than 0 do not draw the lines
-            number = (speed//5-5+(10-i))*5
-            if number < 0:
+            if increment < 0:
                 continue
             
             # Print markers
-            posY = si_offset_y - 250 + i * 50 + (5*speed) % 50
+            # Speed is shown with 10 pixels per kmh
+            posY = si_offset_y - 250 + i * 50 + (10*speed) % 50
             line = self.canvas.create_line(
                 si_offset_x, 
                 posY,
@@ -316,12 +318,12 @@ class HeadUpDisplayApp:
             
             # Print labels
             # display only every second label
-            if number%(10) != 0:
+            if increment%(10) != 0:
                 continue
             label = self.canvas.create_text(
                 si_offset_x+20, 
                 posY, 
-                text=str(number), 
+                text=str(increment), 
                 fill="Lime", 
                 font=("Helvetica", 18),
                 anchor=tk.CENTER, justify=tk.CENTER
@@ -329,21 +331,22 @@ class HeadUpDisplayApp:
             
             self.temporary_items.append(label)
             
-        """
+        
         # Print high rpm threshold
-        high_bound = speed+1250        
+        high_bound = speed+25        
         high_threshold_range = high_bound-speed_high_threshold
-        high_threshold_start_y = si_offset_y - 250 + high_threshold_range//5
+        high_threshold_start_y = si_offset_y - 250 + high_threshold_range*10
         if high_threshold_range>0:
-            n_boxes = high_threshold_range//25//5
+            n_boxes = round(high_threshold_range*10//25)
             # Add First box with custom size
+            
             box_fill = "Lime" if n_boxes%2==0 else "Black"
             box = self.canvas.create_rectangle(
                     si_offset_x-20, 
                     si_offset_y-250,
                     si_offset_x-28, 
-                    high_threshold_start_y-n_boxes*25,
-                    fill=box_fill,width=2,outline="Lime"
+                    high_threshold_start_y-(n_boxes)*25,
+                    fill=box_fill,width=1,outline="Lime"
                 )
             self.temporary_items.append(box)
             for i in range(n_boxes):
@@ -357,16 +360,16 @@ class HeadUpDisplayApp:
                 )
                 self.temporary_items.append(box)
                 
-        # Print warning bar
-        if high_threshold_range>-250:
+        # Draw warning bar
+        if high_threshold_range>-10:
             box = self.canvas.create_rectangle(
                     si_offset_x-20, 
-                    high_threshold_start_y+50,
+                    high_threshold_start_y+100,
                     si_offset_x-24, 
                     high_threshold_start_y if high_threshold_start_y>si_offset_y-250 else si_offset_y-250,
-                    fill="Black",width=2,outline="Lime"
+                    fill="Black",width=1,outline="Lime"
                 )
-            self.temporary_items.append(box)"""
+            self.temporary_items.append(box)
         
     def update_values(self):
         """
